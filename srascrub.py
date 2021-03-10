@@ -190,6 +190,7 @@ def main(argv):
     #ncbi user email
     email = ""
     emailflag = 0
+    hflag = 0
     # search term
     sterm = ""
     stermflag = 0
@@ -238,6 +239,7 @@ def main(argv):
             stermflag = 1
  
         elif opt in ("-H", "--hfile"):
+            hflag = 1
             human_file_path = arg
         
         elif opt in ("-c", "csvfile"):
@@ -265,7 +267,8 @@ def main(argv):
     
     idList = sra_search(email, sterm, resmax)
     summary_results = sra_summaries(email, idList, resmax)
-    human_read_file(human_file_path, summary_results["experiments"], summary_results["studies"])
+    if hflag != 0:
+        human_read_file(human_file_path, summary_results["experiments"], summary_results["studies"])
     if csvflag != 0:
         csv_file_write(csv_file, summary_results["experiments"], summary_results["studies"])
     sys.exit(0)
