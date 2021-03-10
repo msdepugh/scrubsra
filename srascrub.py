@@ -144,6 +144,14 @@ def human_read_file(file_path, experiment, study):
             file.write("\t\t\t\tSUBMITTER: " + experiment[j]["submitter"]["subId"] + ": " + experiment[j]["submitter"]["name"] + ", " + experiment[j]["submitter"]["labname"] + "\n")
         file.write("\n\n")
     file.close()
+
+def csv_file_write(file_path, experiment, study):
+    file = open(file_path, "w")
+    for i in study.keys():
+        for j in study[i]["experiments"]:
+            file.write(i + ", " + study[i]["study"] + ", " + j + ", " + experiment[j]["name"] + ", " + experiment[j]["instrument"] + ", " + experiment[j]["organism"] + ", " + experiment[j]["taxid"] + ", " + experiment[j]["submitter"]["subId"] + ", " + experiment[j]["submitter"]["name"] + ", " + experiment[j]["submitter"]["labname"] + "\n")
+    file.close()
+    
 """
     "These aren't the droids we're looking for... you can go about your business... move along"
 """
@@ -178,6 +186,7 @@ def DEBUG__PRINT_STUDIES(study, experiment) :
 """
 def main(argv):
     
+    csvflag = 0
     #ncbi user email
     email = ""
     emailflag = 0
@@ -190,9 +199,12 @@ def main(argv):
     # max results
     resmax = 40000
     
+    csv_file = ""
+    human_file_path = dir + "human_readable.txt"
+    
     # argument parsing start
     try:
-        opts, args = getopt.getopt(argv, "hd:e:t:", ["help", "dir", "email", "term"])
+        opts, args = getopt.getopt(argv, "hc:d:e:H:t:", ["help", "csvfile", "dir", "email", "hfile", "term"])
     except getopt.GetoptError:
         print("Argument Input Error 55: Option Declaration Error")
         print("srascrub.py example:")
@@ -212,7 +224,7 @@ def main(argv):
             else:
                 print("Argument Input Error 100: Invalid File Path")
                 print("Must begin with / and contain the full file path")
-                sys.exit(101)
+                sys.exit(100)
         elif opt in ("-e", "--email"):
             if re.match(r'(.+)@(.+)\..+', arg):
                 email = arg
@@ -224,7 +236,19 @@ def main(argv):
         elif opt in ("-t", "--term"):
             sterm = arg
             stermflag = 1
-            
+ 
+        elif opt in ("-H", "--hfile"):
+            human_file_path = arg
+        
+        elif opt in ("-c", "csvfile"):
+            if re.match(r'(.+)\.csv', arg):
+                csvflag = 1
+                csv_file = arg
+            else:
+                print("Argument Input Error 99: Invalid CSV File Name")
+                print("CSV File Names must end in .csv")
+                sys.exit(99)
+ 
     if stermflag == 0 or emailflag == 0 or dirflag == 0:
         print("Argument Input Error 55555: Require Flag(s) Missing")
         print("Required Flags are: -d, -t, -e")
@@ -232,7 +256,7 @@ def main(argv):
 
     # outfile definitions assigned here
     # human readable file path
-    human_file_path = dir + "human_readable.txt"
+    #human_file_path = dir + "human_readable.txt"
     # studies out file
     study_out_file_path = dir + "study"
     # experiment out file
@@ -242,6 +266,8 @@ def main(argv):
     idList = sra_search(email, sterm, resmax)
     summary_results = sra_summaries(email, idList, resmax)
     human_read_file(human_file_path, summary_results["experiments"], summary_results["studies"])
+    if csvflag != 0:
+        csv_file_write(csv_file, summary_results["experiments"], summary_results["studies"])
     sys.exit(0)
     
 if __name__ == "__main__":
