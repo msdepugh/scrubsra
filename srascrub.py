@@ -264,12 +264,13 @@ def main(argv):
     # experiment out file
     exp_out_file_path = dir + "exp"
     
-    
     idList = sra_search(email, sterm, resmax)
     summary_results = sra_summaries(email, idList, resmax)
     if hflag != 0:
+        human_file_path = dir + human_file_path
         human_read_file(human_file_path, summary_results["experiments"], summary_results["studies"])
     if csvflag != 0:
+        csv_file = dir + csv_file
         csv_file_write(csv_file, summary_results["experiments"], summary_results["studies"])
     sys.exit(0)
     
