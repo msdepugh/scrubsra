@@ -16,7 +16,7 @@
                     NCBI SRA Toolkit 2.10.9
                     
     Execution:
-                    [prompt]$ python3 srascrub.py -e user@email.com -d /Use/complete/file/path/to/write/outfile -t "this is my search term"
+                    [prompt]$ python3 srascrub.py -e user@email.com -d /Use/complete/file/path/to/write/outfile -t "this is my search term" -H human_read_file.txt -c results.csv
 """
 
 import getopt
@@ -77,7 +77,7 @@ def sra_summaries(email, idList, resmax):
         # experiment dictionary
         #summary dictionary
         addDictS = {"study": "", "experiments": []}
-        addDictE = {"name": "", "instrument": "", "organism": "", "submitter": {"subId": "", "name": "", "labname": ""}, "taxid": ""}
+        addDictE = {"name": "", "instrument": "", "organism": "", "subid": "", "taxid": "", "runs": [], "libstrategy": "", "libsource": "", "libselection": ""}
         
         try:
             Entrez.email = email
@@ -90,27 +90,30 @@ def sra_summaries(email, idList, resmax):
         
         #variable text must be enclosed within 1 "root" tag
         tempstr0 = "<?xml version=\"1.0\"?><root>" + record[0]['ExpXml'] + "</root>"
+        tempstr1 = "<?xml version=\"1.0\"?><root>" + record[0]['Runs'] + "</root>"
         root = ET.fromstring(tempstr0)
+        runs = ET.fromstring(tempstr1)
         addKeyStudy = root[3].attrib['acc']
         addKeyExp = root[2].attrib['acc']
-        #print(record[0]['ExpXml'])
         if addKeyStudy not in study.keys():
-            addDictS["study"] = root[3].attrib["name"]
-            addDictS["experiments"].append(root[2].attrib["acc"])
+            addDictS["study"] = root[3].attrib["name"].replace(',', '')
+            addDictS["experiments"].append(root[2].attrib["acc"].replace(',', ''))
             study[addKeyStudy] = addDictS
         else:
-            study[addKeyStudy]["experiments"].append(root[2].attrib["acc"])
+            study[addKeyStudy]["experiments"].append(root[2].attrib["acc"].replace(',', ''))
         
-        if addKeyExp not in experiment.keys(): # potentially unnecessary if condition ????
-            addDictE["name"] = root[2].attrib["name"]
-            addDictE["instrument"] = root[0][1].attrib["instrument_model"]
-            # fix this
+        if addKeyExp not in experiment.keys():
+            addDictE["name"] = root[2].attrib["name"].replace(',', '')
+            addDictE["instrument"] = root[0][1].attrib["instrument_model"].replace(',', '')
             if "ScientificName" in root[4].attrib:
-                addDictE["organism"] = root[4].attrib["ScientificName"]
-            addDictE["submitter"]["subId"] = root[1].attrib["acc"]
-            addDictE["submitter"]["name"] = root[1].attrib["contact_name"]
-            addDictE["submitter"]["labname"] = root[1].attrib["lab_name"]
-            addDictE["taxid"] = root[4].attrib["taxid"]
+                addDictE["organism"] = root[4].attrib["ScientificName"].replace(',', '')
+            addDictE["subId"] = root[1].attrib["acc"].replace(',', '')
+            addDictE["taxid"] = root[4].attrib["taxid"].replace(',', '')
+            addDictE["libstrategy"] = str(root[7][1].text).replace(',', '')
+            addDictE["libsource"] = str(root[7][2].text).replace(',', '')
+            addDictE["libselection"] = str(root[7][3].text).replace(',', '')
+            for j in runs:
+                addDictE["runs"].append(j.attrib['acc'].replace(',', ''))
             experiment[addKeyExp] = addDictE
         
         handle.close()
@@ -141,15 +144,26 @@ def human_read_file(file_path, experiment, study):
             file.write("\t\t\t\tInstrument : " + experiment[j]["instrument"] + "\n")
             file.write("\t\t\t\tOrganism: " + experiment[j]["organism"] + "\n")
             file.write("\t\t\t\tTax ID: " + experiment[j]["taxid"] + "\n")
-            file.write("\t\t\t\tSUBMITTER: " + experiment[j]["submitter"]["subId"] + ": " + experiment[j]["submitter"]["name"] + ", " + experiment[j]["submitter"]["labname"] + "\n")
+            file.write("\t\t\t\tSubmitter: " + experiment[j]["subId"] + "\n")
+            file.write("\t\t\t\tLibrary Strategy: " + experiment[j]["libstrategy"] + "\n")
+            file.write("\t\t\t\tLibrary Source: " + experiment[j]["libsource"] + "\n")
+            file.write("\t\t\t\tLibrary Selection: " + experiment[j]["libselection"] + "\n")
+            file.write("\t\t\t\tRuns: \n")
+            for k in experiment[j]["runs"]:
+                file.write("\t\t\t\t\t" + k + "\n")
         file.write("\n\n")
     file.close()
 
 def csv_file_write(file_path, experiment, study):
     file = open(file_path, "w")
+    file.write("Study, Study Description, Experiment, Experiment Name, Instrument, Organism, Tax ID, Submitter ID, Library Strategy, Library Source, Library Selection, Runs\n")
     for i in study.keys():
         for j in study[i]["experiments"]:
-            file.write(i + ", " + study[i]["study"] + ", " + j + ", " + experiment[j]["name"] + ", " + experiment[j]["instrument"] + ", " + experiment[j]["organism"] + ", " + experiment[j]["taxid"] + ", " + experiment[j]["submitter"]["subId"] + ", " + experiment[j]["submitter"]["name"] + ", " + experiment[j]["submitter"]["labname"] + "\n")
+            printstr = i + ", " + study[i]["study"] + ", " + j + ", " + experiment[j]["name"] + ", " + experiment[j]["instrument"] + ", " + experiment[j]["organism"] + ", " + experiment[j]["taxid"] + ", " + experiment[j]["subId"] + ", " + experiment[j]["libstrategy"] + ", " + experiment[j]["libsource"] + ", " + experiment[j]["libselection"] + ", "
+            for k in experiment[j]["runs"]:
+                printstr = printstr + k + " "
+            printstr = printstr + "\n"
+            file.write(printstr)
     file.close()
     
 """
@@ -198,7 +212,7 @@ def main(argv):
     dir = ""
     dirflag = 0
     # max results
-    resmax = 40000
+    resmax = 400000
     
     csv_file = ""
     human_file_path = dir + "human_readable.txt"
@@ -209,11 +223,11 @@ def main(argv):
     except getopt.GetoptError:
         print("Argument Input Error 55: Option Declaration Error")
         print("srascrub.py example:")
-        print("\t python3 srascrub.py -e myemail@email.com -d /full/path/to/directory -t \"this is my search term\"")
+        print("\t python3 srascrub.py -e myemail@email.com -d /full/path/to/directory -t \"this is my search term\" -H human_readable_file.txt -c spreadsheet.csv")
         sys.exit(55)
     for opt, arg in opts:
         if opt == '-h' or opt == '--help':
-            print ("srascrub.py arguments:\n\t-h, --help : print help menu\n\t-d, --dir : directory for results\n\t-e, --email : ncbi user email\n\t-t, --term : search term")
+            print ("srascrub.py arguments:\n\t-h, --help : print help menu\n\t-d, --dir : directory for results\n\t-e, --email : ncbi user email\n\t-t, --term : search term\n\t-H : filename of text file output\n\t-c filename of comma separated file")
             sys.exit(104)
         elif opt in ("-d", "--dir"):
             if re.search(r'^/', arg) and os.path.isdir(arg):
@@ -251,18 +265,11 @@ def main(argv):
                 print("CSV File Names must end in .csv")
                 sys.exit(99)
  
-    if stermflag == 0 or emailflag == 0 or dirflag == 0:
+    if stermflag == 0 or emailflag == 0 or dirflag == 0 or (hflag == 0 and csvflag == 0):
         print("Argument Input Error 55555: Require Flag(s) Missing")
         print("Required Flags are: -d, -t, -e")
+        print("Must include either -H or -c as well")
         sys.exit(55555)
-
-    # outfile definitions assigned here
-    # human readable file path
-    #human_file_path = dir + "human_readable.txt"
-    # studies out file
-    study_out_file_path = dir + "study"
-    # experiment out file
-    exp_out_file_path = dir + "exp"
     
     idList = sra_search(email, sterm, resmax)
     summary_results = sra_summaries(email, idList, resmax)
