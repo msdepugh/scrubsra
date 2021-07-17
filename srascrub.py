@@ -23,6 +23,7 @@ import getopt
 import os
 import re
 import sys
+import subprocess
 import xml.etree.ElementTree as ET
 
 from Bio import Entrez
@@ -183,6 +184,17 @@ def DEBUG__PRINT_STUDIES(study, experiment) :
             print("\t\t\t\tTax ID: " + experiment[j]["taxid"])
             print("\t\t\t\tSUBMITTER: " + experiment[j]["submitter"]["subId"] + ": " + experiment[j]["submitter"]["name"] + ", " + experiment[j]["submitter"]["labname"])
         print("\n\n")
+        
+"""
+    "Mos Eisley, you will never find a more wretched hive of scum and villainy."
+"""
+def write_pre_file(study, experiment, file_path):
+	file = open(file_path, "w")
+	for i in study.keys():
+		for j in study[i]["experiments"]:
+			for k in experiment[j]["runs"]:
+				file.write(k + "\n")
+	file.close()
 
 # main system script --- includes argument parser
 
@@ -215,13 +227,14 @@ def main(argv):
     dirflag = 0
     # max results
     resmax = 4000
+    prefetch = 0
     
     csv_file = ""
     human_file_path = dir + "human_readable.txt"
     
     # argument parsing start
     try:
-        opts, args = getopt.getopt(argv, "hc:d:e:H:t:", ["help", "csvfile", "dir", "email", "hfile", "term"])
+        opts, args = getopt.getopt(argv, "hc:d:e:H:pt:", ["help", "csvfile", "dir", "email", "hfile", "prefetchenable" "term"])
     except getopt.GetoptError:
         print("Argument Input Error 55: Option Declaration Error")
         print("srascrub.py example:")
@@ -258,7 +271,7 @@ def main(argv):
             hflag = 1
             human_file_path = arg
         
-        elif opt in ("-c", "csvfile"):
+        elif opt in ("-c", "--csvfile"):
             if re.match(r'(.+)\.csv', arg):
                 csvflag = 1
                 csv_file = arg
@@ -266,6 +279,9 @@ def main(argv):
                 print("Argument Input Error 99: Invalid CSV File Name")
                 print("CSV File Names must end in .csv")
                 sys.exit(99)
+        elif opt in ("-p", "--prefetchenable"):
+            prefetch=1
+			
  
     if stermflag == 0 or emailflag == 0 or dirflag == 0 or (hflag == 0 and csvflag == 0):
         print("Argument Input Error 55555: Require Flag(s) Missing")
@@ -273,6 +289,9 @@ def main(argv):
         print("Must include either -H or -c as well")
         sys.exit(55555)
     
+    # naming prefect read file
+    pre_file = dir + "pre_file.txt"
+
     idList = sra_search(email, sterm, resmax)
     summary_results = sra_summaries(email, idList, resmax)
     if hflag != 0:
@@ -281,10 +300,12 @@ def main(argv):
     if csvflag != 0:
         csv_file = dir + csv_file
         csv_file_write(csv_file, summary_results["experiments"], summary_results["studies"])
+    if prefetch == 1:
+    	write_pre_file(summary_results["studies"], summary_results["experiments"], pre_file)
+    	subprocess.run(["prefetch", "--option-file", "pre_file.txt"])
+
     print('\a')
     sys.exit(0)
-    
-    
     
 if __name__ == "__main__":
    main(sys.argv[1:])
