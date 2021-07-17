@@ -46,6 +46,7 @@ def sra_search(email, sterm, resmax):
         Entrez.email = email
         handle = Entrez.esearch(db="sra", term=sterm, retmax=resmax)
         record = Entrez.read(handle)
+    #    print("here\n")
     except:
         print("Connectivity error: Could not establish connection with NCBI database")
         sys.exit(71000)
@@ -83,6 +84,7 @@ def sra_summaries(email, idList, resmax):
             Entrez.email = email
             handle = Entrez.esummary(db="sra", id=i)
             record = Entrez.read(handle)
+     #       print(i)
         except:
             print("Connectivity error: Could not establish connection with NCBI database")
             sys.exit(71000)
@@ -212,7 +214,7 @@ def main(argv):
     dir = ""
     dirflag = 0
     # max results
-    resmax = 400000
+    resmax = 4000
     
     csv_file = ""
     human_file_path = dir + "human_readable.txt"
@@ -279,7 +281,10 @@ def main(argv):
     if csvflag != 0:
         csv_file = dir + csv_file
         csv_file_write(csv_file, summary_results["experiments"], summary_results["studies"])
+    print('\a')
     sys.exit(0)
+    
+    
     
 if __name__ == "__main__":
    main(sys.argv[1:])
